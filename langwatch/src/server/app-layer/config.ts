@@ -1,6 +1,6 @@
 import { createEnvConfig } from "../../env-create.mjs";
 
-export type ProcessRole = "web" | "worker";
+export type ProcessRole = "web" | "worker" | "migration";
 
 export interface AppConfig {
   nodeEnv: string;
@@ -27,6 +27,7 @@ export interface AppConfig {
   // Process role — controls which event-sourcing consumers run.
   // "web": dispatch commands only (no BullMQ workers)
   // "worker": full consumers
+  // "migration": direct processCommand() calls, reactors excluded
   // undefined: backward-compatible "all" mode
   processRole?: ProcessRole;
 
