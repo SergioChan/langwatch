@@ -14,7 +14,7 @@ import { TraceService } from "~/server/traces/trace.service";
 import { createLogger } from "~/utils/logger/server";
 import { sharedFiltersInputSchema } from "../../analytics/types";
 import { evaluatorsSchema } from "../../evaluations/evaluators.zod.generated";
-import { evaluatePreconditions } from "../../evaluations/preconditions";
+import { evaluatePreconditions, buildPreconditionTraceDataFromTrace, checkEvaluatorRequiredFields } from "../../evaluations/preconditions";
 import { checkPreconditionSchema } from "../../evaluations/types.generated";
 import { checkPermissionOrPubliclyShared, checkProjectPermission } from "../rbac";
 import { getUserProtectionsForProject } from "../utils";
@@ -385,14 +385,21 @@ export const tracesRouter = createTRPCRouter({
       );
 
       const passedPreconditions = traceWithSpans.filter(
-        (trace) =>
-          evaluatorType &&
-          evaluatePreconditions(
+        (trace) => {
+          if (!evaluatorType) return false;
+          const spans = trace.spans ?? [];
+          const requiredFieldsMet = checkEvaluatorRequiredFields({
             evaluatorType,
-            trace,
-            trace.spans ?? [],
+            spans,
+            expectedOutput: trace.expected_output,
+          });
+          if (!requiredFieldsMet) return false;
+          const traceData = buildPreconditionTraceDataFromTrace({ trace, spans });
+          return evaluatePreconditions({
+            traceData,
             preconditions,
-          ),
+          });
+        },
       );
       const passedPreconditionsTraceIds = passedPreconditions?.map(
         (trace) => trace.trace_id,
